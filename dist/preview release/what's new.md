@@ -114,6 +114,7 @@
 - Context loss should not cause PBR materials to render black or instances to stop rendering ([TrevorDev](https://github.com/TrevorDev))
 - Only cast pointer ray input when pointer is locked in webVR ([TrevorDev](https://github.com/TrevorDev))
 - Fix Right Hand coordinates with directional lights and shadows ([CedricGuillemet](https://github.com/CedricGuillemet))
+- Add null input check in PointerDragBehavior._startDrag ([CedricGuillemet](https://github.com/CedricGuillemet))
 - Avoid using default utility layer in gizmo manager to support multiple scenes ([TrevorDev](https://github.com/TrevorDev))
 - Fix bug when adding and removing observers in quick succession ([sable](https://github.com/thscott))
 - Cannon and Ammo forceUpdate will no longer cause an unexpected exception ([TrevorDev](https://github.com/TrevorDev))
