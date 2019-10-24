@@ -12,7 +12,8 @@ import { DataBuffer } from '../Meshes/dataBuffer';
 import { Tools } from "../Misc/tools";
 import { Observer } from "../Misc/observable";
 import { EnvironmentTextureTools, EnvironmentTextureSpecularInfoV1 } from "../Misc/environmentTextureTools";
-import { Color4, Matrix, Viewport, Color3 } from "../Maths/math";
+import { Matrix, Viewport, Color3 } from "../Maths/math";
+import { IColor4Like } from '../Maths/math.like';
 import { Scene } from "../scene";
 import { RenderTargetCreationOptions } from "../Materials/Textures/renderTargetCreationOptions";
 import { IPipelineContext } from './IPipelineContext';
@@ -280,7 +281,7 @@ export class NativeEngine extends Engine {
         }
     }
 
-    public clear(color: Color4, backBuffer: boolean, depth: boolean, stencil: boolean = false): void {
+    public clear(color: Nullable<IColor4Like>, backBuffer: boolean, depth: boolean, stencil: boolean = false): void {
         if (color == null) {
             return;
         }
