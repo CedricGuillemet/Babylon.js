@@ -74,6 +74,7 @@ interface INativeEngine {
     createTexture(): WebGLTexture;
     loadTexture(texture: WebGLTexture, buffer: ArrayBuffer | ArrayBufferView | Blob, mipMap: boolean, invertY: boolean): boolean;
     loadCubeTexture(texture: WebGLTexture, data: Array<Array<ArrayBufferView>>, flipY : boolean): boolean;
+    updateRawTexture(texture: WebGLTexture, data: Nullable<ArrayBufferView>, width: number, height: number, format: number, mipMap: boolean, invertY: boolean): void;
     getTextureWidth(texture: WebGLTexture): number;
     getTextureHeight(texture: WebGLTexture): number;
     setTextureSampling(texture: WebGLTexture, filter: number): void; // filter is a NativeFilter.XXXX value.
@@ -402,6 +403,12 @@ export class NativeEngine extends Engine {
         // }
     }
 
+    public updateDynamicTexture(texture: Nullable<InternalTexture>, canvas: HTMLCanvasElement, invertY: boolean, premulAlpha: boolean = false, format?: number): void {
+        if (!texture) {
+            return;
+        }
+        texture.isReady = true;
+    }
     /**
      * Draw a list of unindexed primitives
      * @param fillMode defines the primitive to use
@@ -1134,6 +1141,39 @@ export class NativeEngine extends Engine {
         return texture;
     }
 
+    /**
+     * Creates a raw texture
+     * @param data defines the data to store in the texture
+     * @param width defines the width of the texture
+     * @param height defines the height of the texture
+     * @param format defines the format of the data
+     * @param generateMipMaps defines if the engine should generate the mip levels
+     * @param invertY defines if data must be stored with Y axis inverted
+     * @param samplingMode defines the required sampling mode (Texture.NEAREST_SAMPLINGMODE by default)
+     * @param compression defines the compression used (null by default)
+     * @param type defines the type fo the data (Engine.TEXTURETYPE_UNSIGNED_INT by default)
+     * @returns the raw texture inside an InternalTexture
+     */
+    public createRawTexture(data: Nullable<ArrayBufferView>, width: number, height: number, format: number, generateMipMaps: boolean, invertY: boolean, samplingMode: number, compression: Nullable<string> = null, type: number = Constants.TEXTURETYPE_UNSIGNED_INT): InternalTexture {
+        var texture = new InternalTexture(this, InternalTextureSource.Raw);
+        texture.baseWidth = width;
+        texture.baseHeight = height;
+        texture.width = width;
+        texture.height = height;
+        texture.format = format;
+        texture.generateMipMaps = generateMipMaps;
+        texture.samplingMode = samplingMode;
+        texture.invertY = invertY;
+        texture._compression = compression;
+        texture.type = type;
+
+        this._native.updateRawTexture(texture._webGLTexture!, data, width, height, NativeEngine._GetNativeTextureFormat(format, type, compression), generateMipMaps, invertY);
+
+        this._internalTexturesCache.push(texture);
+        texture.isReady = true;
+        return texture;
+    }
+
     // Returns a NativeFilter.XXXX value.
     private _getSamplingFilter(samplingMode: number): number {
         switch (samplingMode) {
@@ -1166,7 +1206,7 @@ export class NativeEngine extends Engine {
         }
     }
 
-    private static _GetNativeTextureFormat(format: number, type: number): number {
+    private static _GetNativeTextureFormat(format: number, type: number, compression: Nullable<string>): number {
         if (format == Constants.TEXTUREFORMAT_RGBA && type == Constants.TEXTURETYPE_UNSIGNED_INT) {
             return NativeTextureFormat.RGBA8;
         }
@@ -1219,7 +1259,7 @@ export class NativeEngine extends Engine {
             texture._webGLTexture!,
             width,
             height,
-            NativeEngine._GetNativeTextureFormat(fullOptions.format, fullOptions.type),
+            NativeEngine._GetNativeTextureFormat(fullOptions.format, fullOptions.type, null),
             fullOptions.samplingMode!,
             fullOptions.generateStencilBuffer ? true : false,
             fullOptions.generateDepthBuffer,
