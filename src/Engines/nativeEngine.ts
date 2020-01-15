@@ -189,6 +189,8 @@ declare var _native: any;
 /** @hidden */
 export class NativeEngine extends Engine {
     private readonly _native: INativeEngine = new _native.Engine();
+    private _cachedBoundBuffers: any = null;
+
     /** Defines the invalid handle returned by bgfx when resource creation goes wrong */
     private readonly INVALID_HANDLE = 65535;
 
@@ -954,24 +956,42 @@ export class NativeEngine extends Engine {
 
         // processing for non-image formats
         if (loader) {
-            throw new Error("Loading textures from IInternalTextureLoader not yet implemented.");
-            // var callback = (data: string | ArrayBuffer) => {
-            //     loader!.loadData(data as ArrayBuffer, texture, (width: number, height: number, loadMipmap: boolean, isCompressed: boolean, done: () => void) => {
-            //         this._prepareWebGLTexture(texture, scene, width, height, invertY, !loadMipmap, isCompressed, () => {
-            //                 done();
-            //                 return false;
-            //             },
-            //             samplingMode);
-            //     });
-            // }
+            var callback = (data: string | ArrayBuffer) => {
+                loader!.loadData(data as ArrayBuffer, texture, (width: number, height: number, loadMipmap: boolean, isCompressed: boolean, done: () => void) => {
+                    texture.baseWidth = width;
+                    texture.baseHeight = height;
+                    texture.width = width;
+                    texture.height = height;
+                    texture.invertY = invertY;
+                    // TODO: handle format and type properly
+                    texture.format = Constants.TEXTUREFORMAT_RGBA;
+                    texture.type = Constants.TEXTURETYPE_UNSIGNED_INT;
+                    texture.generateMipMaps = !loadMipmap;
+                    texture.isReady = true;
+                    done();
+                    if (scene) {
+                        scene._removePendingData(texture);
+                    }
 
-            // if (!buffer) {
-            //     this._loadFile(url, callback, undefined, scene ? scene.database : undefined, true, (request?: XMLHttpRequest, exception?: any) => {
-            //         onInternalError("Unable to load " + (request ? request.responseURL : url, exception));
-            //     });
-            // } else {
-            //     callback(buffer as ArrayBuffer);
-            // }
+                    texture.onLoadedObservable.notifyObservers(texture);
+                    texture.onLoadedObservable.clear();
+                    return false;
+                    /*this._prepareWebGLTexture(texture, scene, width, height, invertY, !loadMipmap, isCompressed, () => {
+                            done();
+                            return false;
+                        },
+                        samplingMode);
+                    */
+                });
+            };
+
+            if (!buffer) {
+                this._loadFile(url, callback, undefined, /*scene ? scene.database :*/ undefined, true, (request?: IWebRequest, exception?: any) => {
+                    onInternalError("Unable to load " + (request ? request.responseURL : url, exception));
+                });
+            } else {
+                callback(buffer as ArrayBuffer);
+            }
         } else {
             var onload = (data: string | ArrayBuffer | Blob, responseURL?: string) => {
                 if (typeof (data) === "string") {
@@ -1320,6 +1340,14 @@ export class NativeEngine extends Engine {
         this._bindUnboundFramebuffer(null);
     }
 
+    public bindBuffers(vertexBuffers: { [key: string]: VertexBuffer }, indexBuffer: Nullable<DataBuffer>, effect: Effect): void {
+        if (this._cachedBoundBuffers != null) {
+            this.releaseVertexArrayObject(this._cachedBoundBuffers);
+        }
+        this._cachedBoundBuffers = this.recordVertexArrayObject(vertexBuffers, indexBuffer, effect);
+        this.bindVertexArrayObject(this._cachedBoundBuffers);
+    }
+
     public createDynamicVertexBuffer(data: DataArray): DataBuffer {
         throw new Error("createDynamicVertexBuffer not yet implemented.");
     }
@@ -1456,7 +1484,7 @@ export class NativeEngine extends Engine {
 
     /** @hidden */
     public _uploadDataToTextureDirectly(texture: InternalTexture, imageData: ArrayBufferView, faceIndex: number = 0, lod: number = 0): void {
-        throw new Error("_uploadDataToTextureDirectly not implemented.");
+        this._native.updateRawTexture(texture._webGLTexture!, imageData, texture.width, texture.height, NativeEngine._GetNativeTextureFormat(texture.format, texture.type, texture._compression), texture.generateMipMaps, texture.invertY);
     }
 
     /** @hidden */
